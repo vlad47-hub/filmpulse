@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Streaming Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+        .sidebar-hidden {
+            transform: translateX(-100%);
+        }
+        @media (min-width: 768px) {
+            .sidebar-hidden {
+                transform: translateX(0);
+            }
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background-color: #1f2937;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 90%;
+            max-height: 90%;
+            position: relative;
+        }
+        .modal-content video {
+            width: 100%;
+            max-height: 80vh;
+        }
+        .close-modal {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            cursor: pointer;
+        }
+        .error-message {
+            display: none;
+            color: #ef4444;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        .hero {
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.9)), url('https://images.unsplash.com/photo-1536440136628-0e7c4a93e3d3?auto=format&fit=crop&w=1920');
+            background-size: cover;
+            background-position: center;
+        }
+        .movie-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .movie-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+        .countdown-message {
+            display: none;
+            color: #facc15; /* Yellow for warning */
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+    <!-- Sidebar -->
+    <div class="fixed inset-y-0 left-0 w-64 bg-gray-800 p-4 z-50 sidebar md:sidebar-hidden">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold">Categories</h2>
+            <button id="closeSidebar" class="md:hidden text-gray-400 hover:text-white">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        <ul class="space-y-4" id="categoryList">
+            <li><a href="#" class="category-link hover:text-blue-400 active" data-category="trending">Trending</a></li>
+            <li><a href="#" class="category-link hover:text-blue-400" data-category="28">Action</a></li>
+            <li><a href="#" class="category-link hover:text-blue-400" data-category="18">Drama</a></li>
+            <li><a href="#" class="category-link hover:text-blue-400" data-category="35">Comedy</a></li>
+            <li><a href="#" class="category-link hover:text-blue-400" data-category="878">Sci-Fi</a></li>
+            <li><a href="#" class="category-link hover:text-blue-400" data-category="27">Horror</a></li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="md:ml-64">
+        <!-- Header -->
+        <header class="bg-gray-800 p-4 flex justify-between items-center">
+            <div class="flex items-center">
+                <button id="toggleSidebar" class="md:hidden text-gray-400 hover:text-white mr-4">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path>
+                    </svg>
+                </button>
+                <h1 class="text-2xl font-bold">Streaming Platform</h1>
+            </div>
+            <div>
+                <input type="text" id="searchInput" placeholder="Search movies..." class="p-2 rounded bg-gray-700 text-white w-64 focus:outline-none focus:ring-2 focus:ring-blue-600">
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <div id="contentArea">
+            <!-- Hero Banner -->
+            <section class="hero py-16 px-6 text-center">
+                <h2 class="text-4xl font-bold mb-4">Discover Your Next Favorite Movie</h2>
+                <p class="text-gray-300 mb-6">Explore trending movies, genres, and more.</p>
+                <button id="exploreNow" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">Explore Now</button>
+            </section>
+
+            <!-- Trending Movies Section -->
+            <section class="p-6">
+                <h2 id="sectionTitle" class="text-3xl font-bold mb-4">Top Trending Movies</h2>
+                <div id="errorMessage" class="error-message"></div>
+                <div id="movieGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    <!-- Movie cards will be dynamically populated here -->
+                </div>
+                <!-- Pagination Controls -->
+                <div class="flex justify-center mt-6 space-x-4">
+                    <button id="prevPage" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:bg-gray-600" disabled>Previous</button>
+                    <span id="pageInfo" class="text-gray-400"></span>
+                    <button id="nextPage" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Next</button>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Video Player Modal -->
+    <div id="videoModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <video id="videoPlayer" controls>
+                <source id="videoSource" src="" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+    </div>
+
+    <script>
+        // API Configurations
+        // SECURITY WARNING: Remove hardcoded keys in production; use environment variables or backend proxy
+        const TMDB_API_KEY = '21c85b364be4de46d80c75de138350fa'; // Replace with TMDb API key
+        const RAPID_API_KEY = '01bf3193b8msh83103269bcf900ep188f4ajsnd26148cbe0e0'; // Replace with OTT Details API key
+        const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
+        const RAPID_API_HOST = 'ott-details.p.rapidapi.com';
+        const RAPID_BASE_URL = 'https://ott-details.p.rapidapi.com';
+        const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
+        const MOVIES_PER_PAGE = 8;
+        let currentPage = 1;
+        let totalMovies = 0;
+        let currentCategory = 'trending';
+        let allMovies = [];
+
+        const toggleSidebar = document.getElementById('toggleSidebar');
+        const closeSidebar = document.getElementById('closeSidebar');
+        const sidebar = document.querySelector('.sidebar');
+        const searchInput = document.getElementById('searchInput');
+        const movieGrid = document.getElementById('movieGrid');
+        const videoModal = document.getElementById('videoModal');
+        const videoPlayer = document.getElementById('videoPlayer');
+        const videoSource = document.getElementById('videoSource');
+        const closeModal = document.querySelector('.close-modal');
+        const prevPage = document.getElementById('prevPage');
+        const nextPage = document.getElementById('nextPage');
+        const pageInfo = document.getElementById('pageInfo');
+        const errorMessage = document.getElementById('errorMessage');
+        const sectionTitle = document.getElementById('sectionTitle');
+        const contentArea = document.getElementById('contentArea');
+        const categoryLinks = document.querySelectorAll('.category-link');
+        const exploreNow = document.getElementById('exploreNow');
+
+        // Genre mapping for TMDb
+        const genreMap = {
+            '28': 'Action',
+            '18': 'Drama',
+            '35': 'Comedy',
+            '878': 'Sci-Fi',
+            '27': 'Horror'
+        };
+
+        // Display error message
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            setTimeout(() => {
+                errorMessage.style.display = 'none';
+            }, 5000);
+        }
+
+        // Client-side routing
+        function navigateTo(path) {
+            history.pushState({ path }, '', path);
+            renderPage();
+        }
+
+        function renderPage() {
+            const path = window.location.pathname;
+            if (path.startsWith('/movie/')) {
+                const movieId = path.split('/movie/')[1];
+                fetchMovieDetails(movieId);
+                sidebar.classList.add('sidebar-hidden');
+            } else {
+                fetchTMDbMovies(currentPage, currentCategory);
+                contentArea.classList.remove('hidden');
+            }
+        }
+
+        // Fetch movie details from TMDb
+        async function fetchMovieDetails(movieId) {
+            try {
+                const response = await fetch(`${TMDB_BASE_URL}/movie/${movieId}?api_key=${TMDB_API_KEY}&language=en-US&append_to_response=credits`);
+                if (!response.ok) {
+                    throw new Error(`TMDb details error: ${response.status}`);
+                }
+                const movie = await response.json();
+                renderMovieDetailPage({
+                    id: movie.id,
+                    title: movie.title || movie.original_title || 'Unknown Title',
+                    genre: movie.genres?.[0]?.name || 'Unknown',
+                    year: movie.release_date ? new Date(movie.release_date).getFullYear() : new Date().getFullYear(),
+                    duration: movie.runtime ? `${Math.floor(movie.runtime / 60)}h ${movie.runtime % 60}m` : 'N/A',
+                    poster: movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : 'https://via.placeholder.com/300x450?text=No+Image',
+                    video: 'https://www.w3schools.com/html/mov_bbb.mp4',
+                    overview: movie.overview || 'No description available.',
+                    cast: movie.credits?.cast?.slice(0, 3).map(c => c.name).join(', ') || 'N/A',
+                    rating: movie.vote_average ? `${movie.vote_average.toFixed(1)}/10` : 'N/A'
+                });
+            } catch (error) {
+                console.error('TMDb details error:', error);
+                showError('Failed to fetch movie details. Trying OTT Details...');
+                await fetchOTTMovieDetails(movieId);
+            }
+        }
+
+        // Fetch movie details from OTT Details (fallback, limited details)
+        async function fetchOTTMovieDetails(movieId) {
+            try {
+                const response = await fetch(`${RAPID_BASE_URL}/advancedsearch?imdbid=${movieId}`, {
+                    method: 'GET',
+                    headers: {
+                        'X-RapidAPI-Key': RAPID_API_KEY,
+                        'X-RapidAPI-Host': RAPID_API_HOST
+                    }
+                });
+                if (!response.ok) {
+                    throw new Error(`OTT Details error: ${response.status}`);
+                }
+                const data = await response.json();
+                const movie = data.results?.[0] || {};
+                renderMovieDetailPage({
+                    id: movieId,
+                    title: movie.title || 'Unknown Title',
+                    genre: movie.genre?.[0] || 'Unknown',
+                    year: movie.released || new Date().getFullYear(),
+                    duration: movie.runtime || 'N/A',
+                    poster: movie.imageurl?.[0] || 'https://via.placeholder.com/300x450?text=No+Image',
+                    video: 'https://www.w3schools.com/html/mov_bbb.mp4',
+                    overview: movie.synopsis || 'No description available.',
+                    cast: 'N/A',
+                    rating: movie.imdbrating ? `${movie.imdbrating}/10` : 'N/A'
+                });
+            } catch (error) {
+                console.error('OTT Details error:', error);
+                showError('Failed to fetch movie details. Using fallback data.');
+                renderMovieDetailPage({
+                    id: movieId,
+                    title: 'Fallback Movie',
+                    genre: 'Unknown',
+                    year: new Date().getFullYear(),
+                    duration: 'N/A',
+                    poster: 'https://via.placeholder.com/300x450',
+                    video: 'https://www.w3schools.com/html/mov_bbb.mp4',
+                    overview: 'No description available.',
+                    cast: 'N/A',
+                    rating: 'N/A'
+                });
+            }
+        }
+
+        // Handle download with 17-second countdown
+        function handleDownload(event) {
+            const title = event.target.getAttribute('data-title');
+            const countdownElement = document.getElementById('countdownMessage');
+            const additionalInfo = '+(mkv|mp4|avi|mov|mpg|wmv|divx|mpeg) -inurl:(jsp|pl|php|html|aspx|htm|cf|shtml) intitle:index.of -inurl:(listen77|mp3raid|mp3toss|mp3drug|index_of|index-of|wallywashis|downloadmana)';
+            const searchQuery = `${title} ${additionalInfo}`.trim();
+            
+            let secondsLeft = 17;
+            countdownElement.textContent = `Download link generating in ${secondsLeft} seconds...`;
+            countdownElement.style.display = 'block';
+            
+            const countdownInterval = setInterval(() => {
+                secondsLeft -= 1;
+                countdownElement.textContent = `Download link generating in ${secondsLeft} seconds...`;
+                if (secondsLeft <= 0) {
+                    clearInterval(countdownInterval);
+                    countdownElement.style.display = 'none';
+                    window.location.href = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`;
+                }
+            }, 1000);
+        }
+
+        // Render movie detail page
+        function renderMovieDetailPage(movie) {
+            contentArea.innerHTML = `
+                <section class="p-6 max-w-4xl mx-auto">
+                    <button id="backButton" class="mb-4 bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">Back to Home</button>
+                    <div class="flex flex-col md:flex-row gap-6">
+                        <img src="${movie.poster}" alt="${movie.title}" class="w-full md:w-1/3 rounded-lg shadow-lg" onerror="this.src='https://via.placeholder.com/300x450?text=No+Image'">
+                        <div class="flex-1">
+                            <h2 class="text-3xl font-bold mb-2">${movie.title}</h2>
+                            <p class="text-gray-400 mb-4">${movie.genre} | ${movie.year} | ${movie.duration}</p>
+                            <p class="text-gray-300 mb-4"><strong>Rating:</strong> ${movie.rating}</p>
+                            <p class="text-gray-300 mb-4"><strong>Cast:</strong> ${movie.cast}</p>
+                            <p class="text-gray-300 mb-6"><strong>Overview:</strong> ${movie.overview}</p>
+                            <div class="flex gap-4">
+                                <button class="watch-now bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700" data-video="${movie.video}">Watch Now</button>
+                                <button class="download-now bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700" data-title="${movie.title}" aria-label="Search for ${movie.title} download after 17 seconds">Download</button>
+                            </div>
+                            <div id="countdownMessage" class="countdown-message"></div>
+                        </div>
+                    </div>
+                </section>
+            `;
+            document.getElementById('backButton').addEventListener('click', () => navigateTo('/'));
+            document.querySelector('.watch-now').addEventListener('click', handleWatchNow);
+            document.querySelector('.download-now').addEventListener('click', handleDownload);
+        }
+
+        // Fetch movies from TMDb
+        async function fetchTMDbMovies(page = 1, category = 'trending') {
+            let endpoint = '';
+            let params = `?api_key=${TMDB_API_KEY}&language=en-US&page=${page}`;
+            if (category === 'trending') {
+                endpoint = '/trending/movie/week';
+            } else {
+                endpoint = '/discover/movie';
+                params += `&with_genres=${category}`;
+            }
+
+            try {
+                const response = await fetch(`${TMDB_BASE_URL}${endpoint}${params}`);
+                if (!response.ok) {
+                    throw new Error(`TMDb API error: ${response.status} - Check API key or network`);
+                }
+                const data = await response.json();
+                const movies = data.results || [];
+                totalMovies = data.total_results || movies.length * 2;
+                allMovies = movies.map(movie => ({
+                    id: movie.id,
+                    title: movie.title || movie.original_title || 'Unknown Title',
+                    genre: movie.genre_ids?.[0] ? genreMap[movie.genre_ids[0]] || 'Unknown' : 'Unknown',
+                    year: movie.release_date ? new Date(movie.release_date).getFullYear() : new Date().getFullYear(),
+                    duration: 'N/A',
+                    poster: movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : 'https://via.placeholder.com/300x450?text=No+Image',
+                    video: 'https://www.w3schools.com/html/mov_bbb.mp4'
+                }));
+                renderMovies(allMovies);
+                updatePagination(page);
+            } catch (error) {
+                console.error('TMDb error:', error);
+                showError('Failed to fetch TMDb data. Trying OTT Details...');
+                await fetchOTTMovies(page, category === 'trending' ? 'trending' : genreMap[category]);
+            }
+        }
+
+        // Fetch movies from OTT Details API (fallback)
+        async function fetchOTTMovies(page = 1, category = 'trending') {
+            let params = `?start_year=2010&end_year=2025&min_imdb=6&max_imdb=10&language=english&type=movie&sort=latest&page=${page}`;
+            if (category !== 'trending') {
+                params += `&genre=${encodeURIComponent(category)}`;
+            }
+
+            try {
+                const response = await fetch(`${RAPID_BASE_URL}/advancedsearch${params}`, {
+                    method: 'GET',
+                    headers: {
+                        'X-RapidAPI-Key': RAPID_API_KEY,
+                        'X-RapidAPI-Host': RAPID_API_HOST
+                    }
+                });
+                if (!response.ok) {
+                    throw new Error(`OTT Details API error: ${response.status} - Check API key or subscription`);
+                }
+                const data = await response.json();
+                const movies = data.results || [];
+                totalMovies = data.total_results || movies.length * 2;
+                allMovies = movies.map(movie => ({
+                    id: movie.imdbid || `fallback-${Math.random()}`,
+                    title: movie.title || 'Unknown Title',
+                    genre: movie.genre?.[0] || 'Unknown',
+                    year: movie.released || new Date().getFullYear(),
+                    duration: movie.runtime || 'N/A',
+                    poster: movie.imageurl?.[0] || 'https://via.placeholder.com/300x450?text=No+Image',
+                    video: 'https://www.w3schools.com/html/mov_bbb.mp4'
+                }));
+                renderMovies(allMovies);
+                updatePagination(page);
+            } catch (error) {
+                console.error('OTT Details error:', error);
+                showError('All APIs failed. Using fallback data.');
+                allMovies = [
+                    { id: 'fallback-1', title: 'Fallback Movie 1', genre: 'Action', year: 2023, duration: '2h 15m', poster: 'https://via.placeholder.com/300x450', video: 'https://www.w3schools.com/html/mov_bbb.mp4' },
+                    { id: 'fallback-2', title: 'Fallback Movie 2', genre: 'Drama', year: 2022, duration: '1h 50m', poster: 'https://via.placeholder.com/300x450', video: 'https://www.w3schools.com/html/mov_bbb.mp4' },
+                    { id: 'fallback-3', title: 'Fallback Movie 3', genre: 'Sci-Fi', year: 2024, duration: '2h 30m', poster: 'https://via.placeholder.com/300x450', video: 'https://www.w3schools.com/html/mov_bbb.mp4' },
+                    { id: 'fallback-4', title: 'Fallback Movie 4', genre: 'Comedy', year: 2023, duration: '1h 45m', poster: 'https://via.placeholder.com/300x450', video: 'https://www.w3schools.com/html/mov_bbb.mp4' },
+                    { id: 'fallback-5', title: 'Fallback Movie 5', genre: 'Action', year: 2023, duration: '2h 10m', poster: 'https://via.placeholder.com/300x450', video: 'https://www.w3schools.com/html/mov_bbb.mp4' },
+                    { id: 'fallback-6', title: 'Fallback Movie 6', genre: 'Horror', year: 2021, duration: '2h 0m', poster: 'https://via.placeholder.com/300x450', video: 'https://www.w3schools.com/html/mov_bbb.mp4' },
+                    { id: 'fallback-7', title: 'Fallback Movie 7', genre: 'Romance', year: 2024, duration: '1h 55m', poster: 'https://via.placeholder.com/300x450', video: 'https://www.w3schools.com/html/mov_bbb.mp4' },
+                    { id: 'fallback-8', title: 'Fallback Movie 8', genre: 'Adventure', year: 2022, duration: '2h 20m', poster: 'https://via.placeholder.com/300x450', video: 'https://www.w3schools.com/html/mov_bbb.mp4' }
+                ].slice((page - 1) * MOVIES_PER_PAGE, page * MOVIES_PER_PAGE);
+                totalMovies = 16;
+                renderMovies(allMovies);
+                updatePagination(page);
+            }
+        }
+
+        // Search movies with TMDb
+        async function searchTMDbMovies(query, page = 1) {
+            try {
+                const response = await fetch(`${TMDB_BASE_URL}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=en-US&page=${page}`);
+                if (!response.ok) {
+                    throw new Error(`TMDb search error: ${response.status} - Check API key or query`);
+                }
+                const data = await response.json();
+                const movies = data.results || [];
+                totalMovies = data.total_results || movies.length;
+                allMovies = movies.map(movie => ({
+                    id: movie.id,
+                    title: movie.title || movie.original_title || 'Unknown Title',
+                    genre: movie.genre_ids?.[0] ? genreMap[movie.genre_ids[0]] || 'Unknown' : 'Unknown',
+                    year: movie.release_date ? new Date(movie.release_date).getFullYear() : new Date().getFullYear(),
+                    duration: 'N/A',
+                    poster: movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : 'https://via.placeholder.com/300x450?text=No+Image',
+                    video: 'https://www.w3schools.com/html/mov_bbb.mp4'
+                }));
+                renderMovies(allMovies);
+                updatePagination(page);
+            } catch (error) {
+                console.error('TMDb search error:', error);
+                showError('Search failed. Showing current results.');
+                renderMovies(allMovies);
+            }
+        }
+
+        // Render movie cards
+        function renderMovies(movies) {
+            movieGrid.innerHTML = '';
+            if (movies.length === 0) {
+                movieGrid.innerHTML = '<p class="text-center text-gray-400">No movies found.</p>';
+                return;
+            }
+            movies.forEach(movie => {
+                const movieCard = document.createElement('div');
+                movieCard.className = 'movie-card bg-gray-800 rounded-lg overflow-hidden hover:shadow-lg transition';
+                movieCard.setAttribute('data-title', movie.title);
+                movieCard.setAttribute('data-genre', movie.genre);
+                movieCard.setAttribute('data-id', movie.id);
+                movieCard.innerHTML = `
+                    <img src="${movie.poster}" alt="${movie.title}" class="w-full h-64 object-cover" onerror="this.src='https://via.placeholder.com/300x450?text=No+Image'">
+                    <div class="p-4">
+                        <h3 class="text-lg font-semibold truncate">${movie.title}</h3>
+                        <p class="text-gray-400 text-sm">${movie.genre} | ${movie.year} | ${movie.duration}</p>
+                        <button class="watch-now mt-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" data-video="${movie.video}">Watch Now</button>
+                        <button class="view-details mt-2 ml-2 bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700" data-id="${movie.id}">Details</button>
+                    </div>
+                `;
+                movieGrid.appendChild(movieCard);
+            });
+
+            // Attach listeners
+            document.querySelectorAll('.watch-now').forEach(button => {
+                button.removeEventListener('click', handleWatchNow);
+                button.addEventListener('click', handleWatchNow);
+            });
+            document.querySelectorAll('.view-details').forEach(button => {
+                button.removeEventListener('click', handleViewDetails);
+                button.addEventListener('click', handleViewDetails);
+            });
+        }
+
+        function handleWatchNow() {
+            const videoUrl = this.getAttribute('data-video');
+            videoSource.setAttribute('src', videoUrl);
+            videoPlayer.load();
+            videoModal.style.display = 'flex';
+            videoPlayer.play().catch(e => console.error('Autoplay error:', e));
+        }
+
+        function handleViewDetails() {
+            const movieId = this.getAttribute('data-id');
+            navigateTo(`/movie/${movieId}`);
+        }
+
+        // Update pagination controls
+        function updatePagination(page) {
+            currentPage = page;
+            const totalPages = Math.ceil(totalMovies / MOVIES_PER_PAGE);
+            prevPage.disabled = currentPage === 1;
+            nextPage.style.display = currentPage >= totalPages ? 'none' : 'block';
+            pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+        }
+
+        // Category switching
+        categoryLinks.forEach(link => {
+            link.removeEventListener('click', handleCategoryClick);
+            link.addEventListener('click', handleCategoryClick);
+        });
+
+        function handleCategoryClick(e) {
+            e.preventDefault();
+            categoryLinks.forEach(l => l.classList.remove('active'));
+            this.classList.add('active');
+            currentCategory = this.dataset.category;
+            sectionTitle.textContent = `${this.textContent} Movies`;
+            currentPage = 1;
+            navigateTo('/');
+            fetchTMDbMovies(currentPage, currentCategory);
+        }
+
+        // Search functionality
+        let searchTimeout;
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                const query = searchInput.value.trim();
+                if (query === '') {
+                    navigateTo('/');
+                    fetchTMDbMovies(1, currentCategory);
+                    prevPage.style.display = 'block';
+                    nextPage.style.display = 'block';
+                } else {
+                    searchTMDbMovies(query, 1);
+                    prevPage.style.display = 'none';
+                    nextPage.style.display = 'none';
+                }
+            }, 300);
+        });
+
+        // Sidebar toggle
+        toggleSidebar.addEventListener('click', () => {
+            sidebar.classList.toggle('sidebar-hidden');
+        });
+
+        closeSidebar.addEventListener('click', () => {
+            sidebar.classList.add('sidebar-hidden');
+        });
+
+        // Video player functionality
+        closeModal.addEventListener('click', () => {
+            videoModal.style.display = 'none';
+            videoPlayer.pause();
+            videoPlayer.currentTime = 0;
+        });
+
+        videoModal.addEventListener('click', (e) => {
+            if (e.target === videoModal) {
+                videoModal.style.display = 'none';
+                videoPlayer.pause();
+                videoPlayer.currentTime = 0;
+            }
+        });
+
+        // Pagination event listeners
+        prevPage.addEventListener('click', () => {
+            if (currentPage > 1) {
+                fetchTMDbMovies(currentPage - 1, currentCategory);
+            }
+        });
+
+        nextPage.addEventListener('click', () => {
+            fetchTMDbMovies(currentPage + 1, currentCategory);
+        });
+
+        // Explore now button
+        exploreNow.addEventListener('click', () => {
+            window.scrollTo({ top: document.getElementById('movieGrid').offsetTop, behavior: 'smooth' });
+        });
+
+        // Handle browser navigation
+        window.addEventListener('popstate', renderPage);
+
+        // Initial load
+        renderPage();
+    </script>
+</body>
+</html>
